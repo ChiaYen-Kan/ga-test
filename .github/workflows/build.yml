@@ -1,0 +1,35 @@
+name: Build with gcc in windows
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      matrix:
+        include:
+          - { sys: mingw64, env: x86_64 }
+          - { sys: mingw32, env: i686 }
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+      - name: Install toolchain and Qt libraries
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: git make mingw-w64-${{matrix.env}}-toolchain mingw-w64-${{matrix.env}}-qt5 mingw-w64-${{matrix.env}}-qtwebkit upx p7zip
+      - name: Test
+        run: |
+          date
+          echo $MSYSTEM_PREFIX
+          ls
+          ls $MSYSTEM_PREFIX/bin/libcrypto-*.dll
+          ls $MSYSTEM_PREFIX/bin/libssl-*.dll
+          ls -alh
