@@ -1,0 +1,22 @@
+name: Test Job name
+
+on:
+  workflow_dispatch:
+
+jobs:
+  qmake-build:
+    runs-on: windows-latest
+    steps:
+      - name: qmake
+        shell: bash
+        run: |
+          echo ${{ github.job }}
+  cmake-build:
+    runs-on: windows-latest
+    steps:
+      - name: cmake
+        shell: bash
+        run: |
+          echo ${{ github.job }}
+
+

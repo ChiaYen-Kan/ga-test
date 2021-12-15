@@ -1,0 +1,131 @@
+name: Build with msys2
+
+on:
+  # push:
+  #   paths-ignore:
+  #     - '.github/**'
+  #   branches:
+  #     - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      fail-fast: true
+      # max-parallel: 2
+      matrix:
+        sys: [mingw64, ucrt64, clang64]
+        tls: [wintls, openssl]
+        include:
+        - sys: mingw64
+          env: x86_64
+        - sys: ucrt64
+          env: ucrt-x86_64
+        - sys: clang64
+          env: clang-x86_64
+    steps:
+      - name: Install toolchain and libraries
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: >-
+            git
+            mingw-w64-${{matrix.env}}-openssl
+            mingw-w64-${{matrix.env}}-ca-certificates
+      - run: git config --global core.autocrlf false
+        shell: bash
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Test condition
+        run: |
+          pacman -Ss openssl
+          echo "<SSLP>"
+          echo $OPENSSL_MODULES
+          echo "<legacy>"
+          find $MSYSTEM_PREFIX/ | grep legacy
+          echo "<fips>"
+          find $MSYSTEM_PREFIX/ | grep fips
+          echo "<certificate>"
+          find $MSYSTEM_PREFIX/ | grep certificate
+          echo "<bundle>"
+          find $MSYSTEM_PREFIX/ | grep bundle
+          echo "<======>"
+          if [ "${{ matrix.tls }}" == "wintls" ]; then
+            export SSL_CONFIG="--with-wintls --without-gnutls --without-openssl"
+            echo "Hello { ${{ matrix.sys }} / ${{ matrix.env }} } with wintls ${SSL_CONFIG}"
+          fi
+          if [ "${{ matrix.tls }}" == "openssl" ]; then
+            export SSL_CONFIG="--without-wintls --without-gnutls --with-openssl"
+            echo "Hello { ${{ matrix.sys }} / ${{ matrix.env }} } with openssl ${SSL_CONFIG}"
+          fi
+
+          mkdir ${{ matrix.sys }}-${{ matrix.env }}-ssl
+          cp -rvf $MSYSTEM_PREFIX/lib/ossl-modules ${{ matrix.sys }}-${{ matrix.env }}-ssl/
+          cp $MSYSTEM_PREFIX/bin/libcrypto-*.dll ${{ matrix.sys }}-${{ matrix.env }}-ssl/
+          cp $MSYSTEM_PREFIX/bin/libssl-*.dll ${{ matrix.sys }}-${{ matrix.env }}-ssl/
+
+          cp $MSYSTEM_PREFIX/etc/ssl/certs/ca-bundle.crt ${{ matrix.sys }}-${{ matrix.env }}-ssl/
+
+          echo "./configure ARIA2_STATIC=yes ${SSL_CONFIG}"
+          echo "filename=${{ matrix.sys }}-${{ matrix.env }}-ssl" >> $GITHUB_ENV
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.sys }}-${{ matrix.env }}-ssl
+          path: ${{ env.filename }}/
+      # - name: Configure
+      #   run: |
+      #     autoreconf -i
+      #     ./configure ARIA2_STATIC=yes --without-wintls --without-gnutls
+      # - name: Build
+      #   run: make all
+      # - name: Deploy - strip
+      #   run: |
+      #     strip src/aria2c.exe
+      # - name: Deploy - upx
+      #   run: |
+      #     upx --best --brute --ultra-brute -v src/aria2c.exe
+      # - name: Deploy - create file name
+      #   run: |
+      #     VERSION=`grep AC_INIT configure.ac | sed '/AC_INIT/ s/AC_INIT(\[aria2\],\[\([^]]\+\)\],.*/\1/'`
+      #     echo "filename=aria2-$VERSION-${{matrix.env}}" >> $GITHUB_ENV
+      # - name: Deploy - copy
+      #   run: |
+      #     mkdir ${{ env.filename }}
+      #     cp AUTHORS COPYING ChangeLog LICENSE.OpenSSL NEWS README.html README.mingw src/aria2c.exe ${{ env.filename }}
+      # - name: Upload
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: ${{ env.filename }}
+      #     path: ./${{ env.filename }}/
+  openssl3-doc:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Create openssl document
+        shell: bash
+        run: |
+          echo -e "step1:
+          add a environment variable 'OPENSSL_MODULES' and set to 'ossl-modules' folder
+
+          step2:
+          run aria2c with '--ca-certificate' option and set to 'ca-bundle.crt' file
+
+          reference:
+          https://github.com/php/php-src/issues/9890#issuecomment-1303855417
+          https://github.com/aria2/aria2/issues/889" > about-aria2-with-openssl3.txt
+
+          unix2dos about-aria2-with-openssl3.txt
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: about-aria2-with-openssl3
+          path: about-aria2-with-openssl3.txt
+

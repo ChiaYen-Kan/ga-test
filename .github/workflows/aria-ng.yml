@@ -1,0 +1,33 @@
+name: AriaNg
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
+    steps:
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Checkout AriaNg
+        uses: actions/checkout@v3
+        with:
+          repository: mayswind/AriaNg
+          fetch-depth: 0
+          path: ./AriaNg
+      - name: Build
+        run: |
+          cd AriaNg
+          npm install
+          gulp clean build
+          tar -jcvf AriaNg-${{ matrix.node-version }}.tar.bz2 ./dist
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: AriaNg-${{ matrix.node-version }}.tar.bz2
+          path: AriaNg/AriaNg-${{ matrix.node-version }}.tar.bz2

@@ -1,0 +1,34 @@
+From 26b51a31699d3fd299dafe6566f3c79480301286 Mon Sep 17 00:00:00 2001
+From: ChiaYen Kan <kcygamil@gmail.com>
+Date: Fri, 24 Mar 2023 16:37:03 +0800
+Subject: [PATCH] fix can't run in browser
+
+---
+ src/JSONRPCClient.js | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/JSONRPCClient.js b/src/JSONRPCClient.js
+index 8bab3aa..059babc 100644
+--- a/src/JSONRPCClient.js
++++ b/src/JSONRPCClient.js
+@@ -4,6 +4,8 @@ import Deferred from "./Deferred.js";
+ import promiseEvent from "./promiseEvent.js";
+ import JSONRPCError from "./JSONRPCError.js";
+ 
++var global = global || globalThis;
++
+ class JSONRPCClient extends EventEmitter {
+   constructor(options) {
+     super();
+@@ -12,7 +14,7 @@ class JSONRPCClient extends EventEmitter {
+ 
+     Object.assign(
+       this,
+-      { WebSocket: global.WebSocket, fetch: global.fetch.bind(this) },
++      { WebSocket: global.WebSocket, fetch: global.fetch.bind(global) },
+       this.constructor.defaultOptions,
+       options
+     );
+-- 
+2.39.1.windows.1
+

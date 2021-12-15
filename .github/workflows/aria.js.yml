@@ -1,0 +1,41 @@
+name: aria2.js
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
+    steps:
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Checkout aria2.js
+        uses: actions/checkout@v3
+        with:
+          repository: sonnyp/aria2.js
+          fetch-depth: 0
+          path: ./aria2.js
+      - name: Checkout build
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./build
+      - name: Build
+        run: |
+          cd aria2.js
+          patch -p1 < ../build/patchs/0001-fix-can-t-run-in-browser.patch
+          npm install
+          npm test
+          npm -g install rollup
+          rollup -c rollup.config.js
+          tar -jcvf aria2.js-${{ matrix.node-version }}.tar.bz2 bundle.js
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: aria2.js-${{ matrix.node-version }}.tar.bz2
+          path: aria2.js/aria2.js-${{ matrix.node-version }}.tar.bz2
