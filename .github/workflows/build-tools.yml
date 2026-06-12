@@ -1,0 +1,91 @@
+name: build tools for windows
+
+on:
+  push:
+    paths-ignore:
+      - '.github/**'
+      - 'README.md'
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      matrix:
+        sys: [ucrt64]
+        include:
+        - sys: ucrt64
+          env: ucrt-x86_64
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: >-
+            make
+            p7zip
+            patch
+            base-devel
+            autoconf-wrapper
+            automake-wrapper
+            autotools
+            libtool
+            mingw-w64-${{matrix.env}}-toolchain
+            mingw-w64-${{matrix.env}}-diffutils
+      - name: Build make
+        run: |
+          wget https://mirror.twds.com.tw/gnu/make/make-4.4.1.tar.gz
+          tar xvf make-4.4.1.tar.gz
+          cd make-4.4.1
+          patch -p1 < ../make-patchs/0001-make-linebuf-mingw.patch
+          patch -p1 < ../make-patchs/0002-make-4.3_undef-HAVE_STRUCT_DIRENT_D_TYPE.patch
+          patch -p1 < ../make-patchs/0005-fix-default-cxx.patch
+          patch -p1 < ../make-patchs/0006-fix-build-with-gcc-15.patch
+          patch -p1 < ../make-patchs/0007-make-4.4-timestamps.patch
+          patch -p1 < ../make-patchs/0008-make-4.2.1-Makefile.am-gcc-only-link-libgnumake-1.dll.a.patch
+          autoreconf -vfi
+          ./configure -C --without-libintl-prefix --without-libiconv-prefix CPPFLAGS=-DMAKE_LOAD CFLAGS=-mthreads ac_cv_dos_paths=yes
+          make -j2
+          strip make.exe
+      - name: Deploy - copy make to dist
+        run: |
+          mkdir -p dist
+          cp -rf make-4.4.1/make.exe ./dist/
+      - name: Build busybox
+        run: |
+          wget https://github.com/rmyorston/busybox-w32/archive/busybox-w32-FRP-6075-g169694ebd.tar.gz
+          tar xvf busybox-w32-FRP-6075-g169694ebd.tar.gz
+          cd busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c
+          make mingw64_defconfig
+          make -j2
+      - name: Deploy - copy busybox to dist
+        run: |
+          mkdir -p dist
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/cp.exe
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/echo.exe
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/mkdir.exe
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/rm.exe
+          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/sh.exe
+      - name: Deploy - create file name
+        run: |
+          echo "filename=build-tools-${{matrix.env}}-$(date +"%Y%m%d_%H%M%S")" >> $GITHUB_ENV
+      - name: Deploy - 7z archive
+        run: |
+          7z a -mx=9 ${{ env.filename }}.7z ./dist/*
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: ${{ env.filename }}.7z
+          path: ${{ env.filename }}.7z
