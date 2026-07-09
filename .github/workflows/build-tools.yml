@@ -23,7 +23,7 @@ jobs:
           env: ucrt-x86_64
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install toolchain
@@ -61,22 +61,25 @@ jobs:
         run: |
           mkdir -p dist
           cp -rf make-4.4.1/make.exe ./dist/
+      - name: Checkout busybox
+        uses: actions/checkout@v7
+        with:
+          repository: rmyorston/busybox-w32
+          path: busybox-w32
       - name: Build busybox
         run: |
-          wget https://github.com/rmyorston/busybox-w32/archive/busybox-w32-FRP-6075-g169694ebd.tar.gz
-          tar xvf busybox-w32-FRP-6075-g169694ebd.tar.gz
-          cd busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c
+          cd busybox-w32
           make mingw64_defconfig
           make -j2
       - name: Deploy - copy busybox to dist
         run: |
           mkdir -p dist
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/cp.exe
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/echo.exe
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/mkdir.exe
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/rm.exe
-          cp -rf busybox-w32-169694ebdba292f6533f78aeea678bfbb907396c/busybox.exe ./dist/sh.exe
+          cp -rf busybox-w32/busybox.exe ./dist/
+          cp -rf busybox-w32/busybox.exe ./dist/cp.exe
+          cp -rf busybox-w32/busybox.exe ./dist/echo.exe
+          cp -rf busybox-w32/busybox.exe ./dist/mkdir.exe
+          cp -rf busybox-w32/busybox.exe ./dist/rm.exe
+          cp -rf busybox-w32/busybox.exe ./dist/sh.exe
       - name: Deploy - create file name
         run: |
           echo "filename=build-tools-${{matrix.env}}-$(date +"%Y%m%d_%H%M%S")" >> $GITHUB_ENV
