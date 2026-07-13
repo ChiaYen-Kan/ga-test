@@ -1,0 +1,63 @@
+name: eclipse for embedded arm
+
+on:
+  push:
+    paths-ignore:
+      - '.github/**'
+      - 'README.md'
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      with_jre:
+        description: 'With JRE'
+        required: true
+        type: boolean
+        default: 'false'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Java
+        if: ${{ inputs.with_jre == false }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Download Eclipse
+        run: |
+          curl -L "https://www.eclipse.org/downloads/download.php?file=/eclipse/downloads/drops4/R-4.40-202606010713/eclipse-platform-4.40-win32-win32-x86_64.zip&r=1" --output eclipse.zip
+          7z x eclipse.zip
+      - name: Download and install JRE
+        if: ${{ inputs.with_jre == true }}
+        run: |
+          curl -L "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_windows_hotspot_21.0.9_10.zip" --output jre.zip
+          7z x jre.zip
+          move .\*-jre .\eclipse\jre
+      - name: Install plugins
+        run: |
+          .\eclipse\eclipsec -nosplash -application org.eclipse.equinox.p2.director -repository https://download.eclipse.org/releases/2026-06 -installIU org.eclipse.cdt.feature.group,org.eclipse.cdt.debug.gdbjtag.feature.group,org.eclipse.embedcdt.managedbuild.cross.arm.feature.group,org.eclipse.embedcdt.debug.gdbjtag.jlink.feature.group,org.eclipse.embedcdt.debug.gdbjtag.openocd.feature.group
+      - name: Deploy - create file name with JRE
+        if: ${{ inputs.with_jre == true }}
+        run: |
+          $NOW=& Get-Date -format yyyyMMddhhmmss
+          echo "filename=eclipse-2026-06-with-jre-$NOW" >> $env:GITHUB_ENV
+      - name: Deploy - create file name without JRE
+        if: ${{ inputs.with_jre == false }}
+        run: |
+          $NOW=& Get-Date -format yyyyMMddhhmmss
+          echo "filename=eclipse-2026-06-$NOW" >> $env:GITHUB_ENV
+      - name: Deploy - 7z archive
+        run: |
+          7z a -mx=9 ${{ env.filename }}.7z .\eclipse\*
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: ${{ env.filename }}.7z
+          path: ${{ env.filename }}.7z
