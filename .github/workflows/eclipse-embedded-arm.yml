@@ -43,12 +43,12 @@ jobs:
       - name: Deploy - create file name with JRE
         if: ${{ matrix.with_jre == true }}
         run: |
-          $NOW=& Get-Date -format yyyyMMddhhmmss
+          $NOW=& Get-Date -format yyyyMMdd_hhmmss
           echo "filename=eclipse-2026-06-with-jre-$NOW" >> $env:GITHUB_ENV
       - name: Deploy - create file name without JRE
         if: ${{ matrix.with_jre == false }}
         run: |
-          $NOW=& Get-Date -format yyyyMMddhhmmss
+          $NOW=& Get-Date -format yyyyMMdd_hhmmss
           echo "filename=eclipse-2026-06-$NOW" >> $env:GITHUB_ENV
       - name: Deploy - 7z archive
         run: |
@@ -123,12 +123,7 @@ jobs:
       - name: Deploy - copy busybox to dist
         run: |
           mkdir -p dist
-          cp -rf busybox-w32/busybox.exe ./dist/
-          cp -rf busybox-w32/busybox.exe ./dist/cp.exe
-          cp -rf busybox-w32/busybox.exe ./dist/echo.exe
-          cp -rf busybox-w32/busybox.exe ./dist/mkdir.exe
-          cp -rf busybox-w32/busybox.exe ./dist/rm.exe
-          cp -rf busybox-w32/busybox.exe ./dist/sh.exe
+          for file in busybox.exe cp.exe echo.exe mkdir.exe rm.exe sh.exe ; do cp busybox-w32/busybox.exe "./dist/$file" ; done
       - name: Deploy - create file name
         run: |
           echo "filename=build-tools-${{matrix.env}}-$(date +"%Y%m%d_%H%M%S")" >> $GITHUB_ENV
